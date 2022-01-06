@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}
+<title>
+  Online shop.
+</title>
+{% endblock %}
+
+{% block body %}
+<h1>
+  Online shop.
+</h1>
+<div>
+  {% for product in products %}
+  <div style="display:flex; flex-direction: row;  align-items: center;">
+    <p style="padding-right: 36px">{{ product.title }}</p>
+    <p>{{ product.price }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
