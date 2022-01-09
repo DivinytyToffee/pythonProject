@@ -6,6 +6,7 @@ body {
 
 #shopping-cart {
 	margin: 40px;
+	width: 100%;
 }
 
 #product-grid {
@@ -32,6 +33,17 @@ body {
 	border: #d00000 1px solid;
 	padding: 5px 10px;
 	color: #d00000;
+	float: right;
+	text-decoration: none;
+	border-radius: 3px;
+	margin: 10px 0px;
+}
+
+#btnOrder {
+	background-color: #ffffff;
+	border: #000000 1px solid;
+	padding: 5px 10px;
+	color: #000000;
 	float: right;
 	text-decoration: none;
 	border-radius: 3px;
@@ -121,4 +133,9 @@ body {
 	text-align: center;
 	clear: both;
 	margin: 38px 0px;
+}
+
+.buyBlock{
+	display: flex;
+	justify-content: flex-start;
 }

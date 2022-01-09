@@ -68,57 +68,48 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Login')
 
 
-def getLoginDetails():
-    loggedIn = False
-    firstName = ''
-    noOfItems = 0
-    if session.get('email'):
-        user = User.query.filter_by(email=session.get('email')).first()
-        loggedIn = True
-        userId, firstName = user.id, user.firstName
-    return (loggedIn, firstName, noOfItems)
-
-
 @app.route('/')
 def index():
-    logged_in, first_name, no_of_items = getLoginDetails()
+    logged_in, first_name, kia = get_login_details()
     items = Item.query.order_by(Item.price).all()
-    return render_template('index.html', products=items, logged_in=logged_in, first_name=first_name)
+    return render_template('index.html', products=items, logged_in=logged_in, first_name=first_name, kia=kia)
 
 
 @app.route('/add_to_cart', methods=['POST', 'GET'])
 def add_product_to_cart():
     _quantity = int(request.form['quantity'])
     _code = request.form['code']
-    # validate the received values
+
     if _quantity and _code and request.method == 'POST':
         row = Item.query.filter_by(id=_code).first()
+        kia = get_cart_key()
 
-        itemArray = {str(row.id): {'title': row.title, 'code': row.id, 'quantity': _quantity, 'price': row.price,
-                     'total_price': _quantity * row.price}}
+        item_array = {str(row.id): {'title': row.title, 'code': row.id, 'quantity': _quantity, 'price': row.price,
+                                    'total_price': _quantity * row.price}}
 
         all_total_price = 0
         all_total_quantity = 0
+        kia
 
-        # session.modified = True
-        if 'cart_item' in session:
-            if row.id in session['cart_item']:
-                for key, value in session['cart_item'].items():
+        session.modified = True
+        if kia in session:
+            if row.id in session[kia]:
+                for key, value in session[kia].items():
                     if row.id == key:
-                        old_quantity = session['cart_item'][key]['quantity']
+                        old_quantity = session[kia][key]['quantity']
                         total_quantity = old_quantity + _quantity
-                        session['cart_item'][key]['quantity'] = total_quantity
-                        session['cart_item'][key]['total_price'] = total_quantity * row.price
+                        session[kia][key]['quantity'] = total_quantity
+                        session[kia][key]['total_price'] = total_quantity * row.price
             else:
-                session['cart_item'] = array_merge(session['cart_item'], itemArray)
+                session[kia] = array_merge(session[kia], item_array)
 
-            for key, value in session['cart_item'].items():
-                individual_quantity = int(session['cart_item'][key]['quantity'])
-                individual_price = float(session['cart_item'][key]['total_price'])
+            for key, value in session[kia].items():
+                individual_quantity = int(session[kia][key]['quantity'])
+                individual_price = float(session[kia][key]['total_price'])
                 all_total_quantity = all_total_quantity + individual_quantity
                 all_total_price = all_total_price + individual_price
         else:
-            session['cart_item'] = itemArray
+            session[kia] = item_array
             all_total_quantity = all_total_quantity + _quantity
             all_total_price = all_total_price + _quantity * row.price
 
@@ -133,10 +124,11 @@ def add_product_to_cart():
 @app.route('/empty')
 def empty_cart():
     try:
-        session.clear()
+        kia = get_cart_key()
+        session.pop(kia)
         return redirect(url_for('index'))
     except Exception as e:
-        print(e)
+        return redirect(url_for('index'))
 
 
 @app.route('/delete/<string:code>')
@@ -144,25 +136,25 @@ def delete_product(code):
     all_total_price = 0
     all_total_quantity = 0
     session.modified = True
+    cart_item = get_cart_key()
 
-    for item in session['cart_item'].items():
+    for item in session[cart_item].items():
         if item[0] == code:
-            session['cart_item'].pop(item[0], None)
-            if 'cart_item' in session:
-                for key, value in session['cart_item'].items():
-                    individual_quantity = int(session['cart_item'][key]['quantity'])
-                    individual_price = float(session['cart_item'][key]['total_price'])
+            session[cart_item].pop(item[0], None)
+            if cart_item in session:
+                for key, value in session[cart_item].items():
+                    individual_quantity = int(session[cart_item][key]['quantity'])
+                    individual_price = float(session[cart_item][key]['total_price'])
                     all_total_quantity = all_total_quantity + individual_quantity
                     all_total_price = all_total_price + individual_price
             break
 
     if all_total_quantity == 0:
-        session.clear()
+        session.pop(cart_item)
     else:
         session['all_total_quantity'] = all_total_quantity
         session['all_total_price'] = all_total_price
 
-    # return redirect('/')
     return redirect(url_for('index'))
 
 
@@ -191,6 +183,8 @@ def login():
         user = User.query.filter_by(email=form.email.data).first()
         if user and bcrypt.check_password_hash(user.password, form.password.data):
             login_user(user)
+            if session.get(get_cart_key()):
+                return redirect(url_for('order'))
             return redirect(url_for('index'))
     return render_template('login.html', form=form)
 
@@ -215,10 +209,35 @@ def register():
     return render_template('register.html', form=form)
 
 
+@app.route('/order', methods=['POST', 'GET'])
+def order():
+    user_id = session.get('_user_id')
+    logged_in, first_name, kia = get_login_details()
+    if user_id is None:
+        return redirect(url_for('login'))
+    
+    return render_template('order.html', logged_in=logged_in, first_name=first_name, kia=kia)
+
+
 def array_merge(first_array, second_array):
     if isinstance(first_array, dict) and isinstance(second_array, dict):
         return dict(list(first_array.items()) + list(second_array.items()))
     return False
+
+
+def get_cart_key():
+    return 'cart_items'
+
+
+def get_login_details():
+    logged_in = False
+    first_name = ''
+    kia = get_cart_key()
+    if session.get('_user_id'):
+        user = User.query.filter_by(id=int(session.get('_user_id'))).first()
+        logged_in = True
+        first_name = user.firstName
+    return logged_in, first_name, kia
 
 
 if __name__ == '__main__':

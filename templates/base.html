@@ -10,21 +10,12 @@
         <nav>
             <a href='/'>Main</a>
             {% if not logged_in %}
-            <a class="link" href="/login">Sign In</a>
+                <a class="link" href="/login">Sign In</a>
             {% else %}
-            <div class="dropdown">
-                <button class="dropbtn">Hello, <br>{{first_name}}</button>
-                <div class="dropdown-content">
-                    <a href="/account/orders">Your orders</a>
-                    <a href="/account/profile">Your profile</a>
-                    <hr>
-                    <a href="/logout">Sign Out</a>
-                </div>
-            </div>
+                <a>Hi, {{ first_name }}</a>
+                <a href="/logout">Sign Out</a>
             {% endif %}
             <a href="/add">Add product</a>
-            <a href="/logout">LogOut</a>
-
         </nav>
     </div>
     {% block body %}{% endblock %}
