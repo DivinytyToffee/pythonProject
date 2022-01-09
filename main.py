@@ -43,6 +43,8 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_list = db.Column(db.Text(), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    all_total_quantity = db.Column(db.Integer)
+    all_total_price = db.Column(db.Integer)
 
 
 class Item(db.Model):
@@ -238,7 +240,10 @@ def buy():
     if session.get(get_cart_key()):
         user = User.query.filter_by(id=int(user_id)).first()
         order_list = json.dumps(session.get(get_cart_key()))
-        _order = Order(user_id=int(user.id), order_list=order_list)
+        all_total_price = int(session.get('all_total_price'))
+        all_total_quantity = int(session.get('all_total_quantity'))
+        _order = Order(user_id=int(user.id), order_list=order_list,
+                       all_total_quantity=all_total_quantity, all_total_price=all_total_price)
         db.session.add(_order)
         db.session.commit()
         return redirect(url_for('empty_cart'))
