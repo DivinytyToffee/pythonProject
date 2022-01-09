@@ -1,3 +1,6 @@
+import random
+import string
+
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
@@ -24,6 +27,7 @@ def load_user(user_id):
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
+    login = db.Column(db.String(26), nullable=False, unique=True)
     password = db.Column(db.Text(), nullable=False)
     email = db.Column(db.String(128), nullable=False, unique=True)
     firstName = db.Column(db.String(26), nullable=True)
@@ -61,8 +65,8 @@ class RegisterForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
-    email = StringField(validators=[InputRequired(), Length(min=4, max=128)],
-                        render_kw={'placeholder': 'Email'})
+    login = StringField(validators=[InputRequired(), Length(min=4, max=26)],
+                        render_kw={'placeholder': 'Login'})
     password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)],
                              render_kw={'placeholder': 'Password'})
     submit = SubmitField('Login')
@@ -89,7 +93,6 @@ def add_product_to_cart():
 
         all_total_price = 0
         all_total_quantity = 0
-        kia
 
         session.modified = True
         if kia in session:
@@ -180,13 +183,14 @@ def add_product():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user = User.query.filter_by(login=form.login.data).first()
         if user and bcrypt.check_password_hash(user.password, form.password.data):
             login_user(user)
             if session.get(get_cart_key()):
                 return redirect(url_for('order'))
             return redirect(url_for('index'))
-    return render_template('login.html', form=form)
+    return render_template('login.html', form=form, login=request.values.get('login'),
+                           password=request.values.get('password'))
 
 
 @app.route('/logout', methods=['POST', 'GET'])
@@ -201,11 +205,13 @@ def register():
 
     if form.validate_on_submit():
         hash_pass = bcrypt.generate_password_hash(form.password.data)
-        new_user = User(email=form.email.data, password=hash_pass,
+        rand_str = "".join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(10))
+        login = f'{form.email.data.split("@")[0]}_{rand_str}'
+        new_user = User(email=form.email.data, password=hash_pass, login=login,
                         lastName=form.lastName.data, firstName=form.firstName.data)
         db.session.add(new_user)
         db.session.commit()
-        return redirect(url_for('login'))
+        return redirect(url_for('login', login=login, password=form.password.data))
     return render_template('register.html', form=form)
 
 
@@ -215,7 +221,7 @@ def order():
     logged_in, first_name, kia = get_login_details()
     if user_id is None:
         return redirect(url_for('login'))
-    
+
     return render_template('order.html', logged_in=logged_in, first_name=first_name, kia=kia)
 
 
@@ -235,8 +241,9 @@ def get_login_details():
     kia = get_cart_key()
     if session.get('_user_id'):
         user = User.query.filter_by(id=int(session.get('_user_id'))).first()
-        logged_in = True
-        first_name = user.firstName
+        if user:
+            logged_in = True
+            first_name = user.firstName
     return logged_in, first_name, kia
 
 

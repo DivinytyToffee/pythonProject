@@ -10,9 +10,13 @@
     <h1>
       Login
     </h1>
+    {% if login %}
+        <p>{{ login }}</p>
+        <p>{{ password }}</p>
+    {% endif %}
     <form method="post" action="">
         {{ form.hidden_tag() }}
-        {{ form.email }}
+        {{ form.login }}
         {{ form.password }}
         {{ form.submit }}
     </form>

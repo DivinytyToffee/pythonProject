@@ -1,4 +1,4 @@
-from main import db, User, Item
+from main import db, User, Item, session
 
 db.create_all()
 # us = User(password='123456', email='step@sa.com',
