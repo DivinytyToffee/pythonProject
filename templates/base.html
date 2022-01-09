@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" type="text/css" />
     {% block title %}{% endblock %}
 </head>
 <body>
@@ -10,6 +11,21 @@
             <a href='/'>Main</a>
             <a href="/login">Login/Register</a>
             <a href="/add">Add product</a>
+            {% if not logged_in %}
+            <div id="signInButton">
+                <a class="link" href="/loginForm">Sign In</a>
+            </div>
+            {% else %}
+            <div class="dropdown">
+                <button class="dropbtn">Hello, <br>{{first_name}}</button>
+                <div class="dropdown-content">
+                    <a href="/account/orders">Your orders</a>
+                    <a href="/account/profile">Your profile</a>
+                    <hr>
+                    <a href="/logout">Sign Out</a>
+                </div>
+            </div>
+            {% endif %}
         </nav>
     </div>
     {% block body %}{% endblock %}
