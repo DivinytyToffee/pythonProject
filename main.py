@@ -1,3 +1,4 @@
+import json
 import random
 import string
 
@@ -32,9 +33,16 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(128), nullable=False, unique=True)
     firstName = db.Column(db.String(26), nullable=True)
     lastName = db.Column(db.String(26), nullable=True)
+    orders = db.relationship('Order', backref='user', lazy='dynamic')
 
     def __repr__(self):
         return f'{self.firstName} {self.lastName}'
+
+
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_list = db.Column(db.Text(), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
 
 class Item(db.Model):
@@ -216,13 +224,25 @@ def register():
 
 
 @app.route('/order', methods=['POST', 'GET'])
+@login_required
 def order():
-    user_id = session.get('_user_id')
     logged_in, first_name, kia = get_login_details()
-    if user_id is None:
-        return redirect(url_for('login'))
 
     return render_template('order.html', logged_in=logged_in, first_name=first_name, kia=kia)
+
+
+@app.route('/buy', methods=['POST', 'GET'])
+@login_required
+def buy():
+    user_id = session.get('_user_id')
+    if session.get(get_cart_key()):
+        user = User.query.filter_by(id=int(user_id)).first()
+        order_list = json.dumps(session.get(get_cart_key()))
+        _order = Order(user_id=int(user.id), order_list=order_list)
+        db.session.add(_order)
+        db.session.commit()
+        return redirect(url_for('empty_cart'))
+    return redirect(url_for('index'))
 
 
 def array_merge(first_array, second_array):
