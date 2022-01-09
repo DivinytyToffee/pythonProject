@@ -1,19 +1,33 @@
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
+from flask_wtf import FlaskForm
+from flask_bcrypt import Bcrypt
+from wtforms import StringField, SubmitField, PasswordField
+from wtforms.validators import InputRequired, Length, ValidationError
 
 app = Flask(__name__)
 app.secret_key = 'random string'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shop.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATION'] = False
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 
-class User(db.Model):
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     password = db.Column(db.Text(), nullable=False)
-    email = db.Column(db.String(128), nullable=False)
-    firstName = db.Column(db.String(26), nullable=False)
-    lastName = db.Column(db.String(26), nullable=False)
+    email = db.Column(db.String(128), nullable=False, unique=True)
+    firstName = db.Column(db.String(26), nullable=True)
+    lastName = db.Column(db.String(26), nullable=True)
 
     def __repr__(self):
         return f'{self.firstName} {self.lastName}'
@@ -29,6 +43,31 @@ class Item(db.Model):
         return f'{self.title}'
 
 
+class RegisterForm(FlaskForm):
+    email = StringField(validators=[InputRequired(), Length(min=4, max=128)],
+                        render_kw={'placeholder': 'Email'})
+    firstName = StringField(validators=[Length(min=4, max=26)],
+                            render_kw={'placeholder': 'First Name'})
+    lastName = StringField(validators=[Length(min=4, max=26)],
+                           render_kw={'placeholder': 'Last Name'})
+    password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)],
+                             render_kw={'placeholder': 'Password'})
+    submit = SubmitField('Register')
+
+    def validate_email(self, email):
+        existing = User.query.filter_by(email=email.data).first()
+        if existing:
+            raise ValidationError('email is registered')
+
+
+class LoginForm(FlaskForm):
+    email = StringField(validators=[InputRequired(), Length(min=4, max=128)],
+                        render_kw={'placeholder': 'Email'})
+    password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)],
+                             render_kw={'placeholder': 'Password'})
+    submit = SubmitField('Login')
+
+
 def getLoginDetails():
     loggedIn = False
     firstName = ''
@@ -37,8 +76,6 @@ def getLoginDetails():
         user = User.query.filter_by(email=session.get('email')).first()
         loggedIn = True
         userId, firstName = user.id, user.firstName
-        # cur.execute("SELECT count(productId) FROM kart WHERE userId = " + str(userId))
-        # noOfItems = cur.fetchone()[0]
     return (loggedIn, firstName, noOfItems)
 
 
@@ -147,18 +184,40 @@ def add_product():
         return render_template('add_product.html')
 
 
-@app.route('/login')
+@app.route('/login', methods=['POST', 'GET'])
 def login():
-    return render_template('add_product.html')
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and bcrypt.check_password_hash(user.password, form.password.data):
+            login_user(user)
+            return redirect(url_for('index'))
+    return render_template('login.html', form=form)
+
+
+@app.route('/logout', methods=['POST', 'GET'])
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+
+@app.route('/register', methods=['POST', 'GET'])
+def register():
+    form = RegisterForm()
+
+    if form.validate_on_submit():
+        hash_pass = bcrypt.generate_password_hash(form.password.data)
+        new_user = User(email=form.email.data, password=hash_pass,
+                        lastName=form.lastName.data, firstName=form.firstName.data)
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for('login'))
+    return render_template('register.html', form=form)
 
 
 def array_merge(first_array, second_array):
-    if isinstance( first_array, list) and isinstance(second_array, list):
-        return first_array + second_array
-    elif isinstance(first_array, dict) and isinstance(second_array, dict):
+    if isinstance(first_array, dict) and isinstance(second_array, dict):
         return dict(list(first_array.items()) + list(second_array.items()))
-    elif isinstance(first_array, set) and isinstance(second_array, set):
-        return first_array.union(second_array)
     return False
 
 

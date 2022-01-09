@@ -9,12 +9,8 @@
     <div>
         <nav>
             <a href='/'>Main</a>
-            <a href="/login">Login/Register</a>
-            <a href="/add">Add product</a>
             {% if not logged_in %}
-            <div id="signInButton">
-                <a class="link" href="/loginForm">Sign In</a>
-            </div>
+            <a class="link" href="/login">Sign In</a>
             {% else %}
             <div class="dropdown">
                 <button class="dropbtn">Hello, <br>{{first_name}}</button>
@@ -26,6 +22,9 @@
                 </div>
             </div>
             {% endif %}
+            <a href="/add">Add product</a>
+            <a href="/logout">LogOut</a>
+
         </nav>
     </div>
     {% block body %}{% endblock %}
