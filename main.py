@@ -45,6 +45,7 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     all_total_quantity = db.Column(db.Integer)
     all_total_price = db.Column(db.Integer)
+    status = db.Column(db.Boolean, default=False)
 
 
 class Item(db.Model):
@@ -229,13 +230,6 @@ def register():
 @login_required
 def order():
     logged_in, first_name, kia = get_login_details()
-
-    return render_template('order.html', logged_in=logged_in, first_name=first_name, kia=kia)
-
-
-@app.route('/buy', methods=['POST', 'GET'])
-@login_required
-def buy():
     user_id = session.get('_user_id')
     if session.get(get_cart_key()):
         user = User.query.filter_by(id=int(user_id)).first()
@@ -244,6 +238,20 @@ def buy():
         all_total_quantity = int(session.get('all_total_quantity'))
         _order = Order(user_id=int(user.id), order_list=order_list,
                        all_total_quantity=all_total_quantity, all_total_price=all_total_price)
+        db.session.add(_order)
+        db.session.commit()
+        session.update({'_order_id': _order.id})
+
+    return render_template('order.html', logged_in=logged_in, first_name=first_name, kia=kia)
+
+
+@app.route('/buy', methods=['POST', 'GET'])
+@login_required
+def buy():
+    order_id = session.get('_order_id')
+    if session.get(get_cart_key()):
+        _order = Order.query.filter_by(id=order_id).first()
+        _order.id = True
         db.session.add(_order)
         db.session.commit()
         return redirect(url_for('empty_cart'))
