@@ -7,8 +7,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
 from flask_wtf import FlaskForm
 from flask_bcrypt import Bcrypt
-from wtforms import StringField, SubmitField, PasswordField
-from wtforms.validators import InputRequired, Length, ValidationError
+from wtforms import StringField, SubmitField, PasswordField, SelectField
+from wtforms.validators import InputRequired, Length, ValidationError, DataRequired
 
 app = Flask(__name__)
 app.secret_key = 'random string'
@@ -83,6 +83,11 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Login')
 
 
+class SearchForm(FlaskForm):
+    search = StringField('search', [DataRequired()])
+    submit = SubmitField('Search')
+
+
 @app.route('/')
 def index():
     logged_in, first_name, kia = get_login_details()
@@ -140,6 +145,7 @@ def empty_cart():
     try:
         kia = get_cart_key()
         session.pop(kia)
+        session.pop('_order_id')
         return redirect(url_for('index'))
     except Exception as e:
         return redirect(url_for('index'))
@@ -165,6 +171,7 @@ def delete_product(code):
 
     if all_total_quantity == 0:
         session.pop(cart_item)
+        session.pop('_order_id')
     else:
         session['all_total_quantity'] = all_total_quantity
         session['all_total_price'] = all_total_price
@@ -231,7 +238,8 @@ def register():
 def order():
     logged_in, first_name, kia = get_login_details()
     user_id = session.get('_user_id')
-    if session.get(get_cart_key()):
+
+    if session.get(get_cart_key()) and not session.get('_order_id'):
         user = User.query.filter_by(id=int(user_id)).first()
         order_list = json.dumps(session.get(get_cart_key()))
         all_total_price = int(session.get('all_total_price'))
@@ -251,11 +259,42 @@ def buy():
     order_id = session.get('_order_id')
     if session.get(get_cart_key()):
         _order = Order.query.filter_by(id=order_id).first()
-        _order.id = True
+        _order.status = True
         db.session.add(_order)
         db.session.commit()
         return redirect(url_for('empty_cart'))
     return redirect(url_for('index'))
+
+
+@app.route('/admin', methods=['POST', 'GET'])
+@login_required
+def admin():
+    logged_in, first_name, kia = get_login_details()
+    form = SearchForm()
+    orders = Order.query.all()
+    if request.method == 'POST':
+        user = User.query.filter(User.email == form.search.data).first()
+        orders = Order.query.filter(Order.user_id == user.id).all()
+    user_email = {_ord.id: User.query.filter_by(id=_ord.user_id).first().email
+                  for _ord in orders}
+    return render_template('admin.html', form=form, orders=orders, logged_in=logged_in,
+                           first_name=first_name, kia=kia, user_email=user_email)
+
+
+@app.route('/search', methods=['POST', 'GET'])
+@login_required
+def search():
+    form = SearchForm()
+    if not form.validate_on_submit():
+        return redirect(url_for('admin'))
+    return redirect((url_for('search_results', query=form.search.data)))
+
+
+@app.route('/search_results/<query>')
+@login_required
+def search_results(query):
+    results = User.query.whoosh_search(query).all()
+    return render_template('admin.html', query=query, results=results)
 
 
 def array_merge(first_array, second_array):

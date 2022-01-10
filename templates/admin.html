@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    <title>
+      Admin
+    </title>
+{% endblock %}
+
+{% block body %}
+    <h1>
+      Admin
+    </h1>
+    <form method="post" action="">
+        {{ form.hidden_tag() }}
+        {{ form.search}}
+        {{ form.submit }}
+    </form>
+    <h3>Orders</h3>
+    <div>
+        <table>
+            <tbody>
+                <tr>
+                    <td>Order id</td>
+                    <td>Order list</td>
+                    <td>Email</td>
+                    <td>Status</td>
+                </tr>
+            {% for order in orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.order_list }}</td>
+                    <td>{{ user_email.get(order.id) }}</td>
+                    <td>{{ order.status }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
